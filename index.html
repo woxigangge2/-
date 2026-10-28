@@ -1,0 +1,2272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>天体运行与引力动力学交互实验室 · Celestial Mechanics Lab</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+    
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+    
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: #030712;
+      color: #f3f4f6;
+      overflow: hidden;
+    }
+
+    .font-mono-code {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Custom scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(17, 24, 39, 0.7);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(75, 85, 99, 0.8);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(156, 163, 175, 0.9);
+    }
+
+    /* Range slider styling */
+    input[type=range] {
+      -webkit-appearance: none;
+      background: rgba(55, 65, 81, 0.8);
+      border-radius: 9999px;
+      height: 6px;
+      outline: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #38bdf8;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.8);
+      transition: transform 0.1s, background-color 0.1s;
+    }
+    input[type=range]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+      background: #7dd3fc;
+    }
+
+    /* Glassmorphism backgrounds */
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    
+    .glass-card {
+      background: rgba(30, 41, 59, 0.6);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    /* Pulse glow */
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.3; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(1.05); }
+    }
+    .sun-glow {
+      animation: pulseGlow 4s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="w-screen h-screen flex flex-col bg-slate-950 text-slate-100 select-none">
+
+  <!-- Top Navigation Header -->
+  <header class="h-14 border-b border-slate-800/80 bg-slate-900/90 backdrop-blur-md px-4 flex items-center justify-between z-20 shrink-0">
+    <div class="flex items-center space-x-3">
+      <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-500 via-rose-500 to-indigo-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
+        <span class="text-base">🪐</span>
+      </div>
+      <div>
+        <h1 class="text-sm font-semibold tracking-wide text-white flex items-center gap-1.5">
+          <span>天体运行与引力动力学实验室</span>
+          <span class="text-xs font-normal text-sky-400 bg-sky-950/60 border border-sky-800/60 px-1.5 py-0.5 rounded-full">v2.5 Pro</span>
+        </h1>
+        <p class="text-[10px] text-slate-400 hidden sm:block">Celestial Mechanics & Orbital Physics Simulator</p>
+      </div>
+    </div>
+
+    <!-- Mode Selector Tabs -->
+    <div class="flex items-center bg-slate-950/70 p-1 rounded-xl border border-slate-800/80 text-xs">
+      <button id="tab-solar" class="mode-tab px-3 py-1.5 rounded-lg font-medium transition-all duration-200 bg-sky-600 text-white shadow-md shadow-sky-600/30 flex items-center gap-1.5">
+        <span>🌌</span>
+        <span class="hidden md:inline">太阳系运转</span>
+      </button>
+      <button id="tab-kepler" class="mode-tab px-3 py-1.5 rounded-lg font-medium transition-all duration-200 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 flex items-center gap-1.5">
+        <span>📐</span>
+        <span class="hidden md:inline">开普勒定律</span>
+      </button>
+      <button id="tab-nbody" class="mode-tab px-3 py-1.5 rounded-lg font-medium transition-all duration-200 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 flex items-center gap-1.5">
+        <span>⚛️</span>
+        <span class="hidden md:inline">多体引力沙盒</span>
+      </button>
+      <button id="tab-hohmann" class="mode-tab px-3 py-1.5 rounded-lg font-medium transition-all duration-200 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 flex items-center gap-1.5">
+        <span>🚀</span>
+        <span class="hidden md:inline">霍曼转移轨道</span>
+      </button>
+    </div>
+
+    <!-- Header Actions -->
+    <div class="flex items-center space-x-2">
+      <button id="btn-audio" class="p-2 text-slate-400 hover:text-white bg-slate-800/60 hover:bg-slate-700/60 border border-slate-700/60 rounded-lg transition text-xs flex items-center gap-1.5" title="深空环境音效切换">
+        <span id="audio-icon">🔇</span>
+        <span class="hidden xl:inline text-[11px]" id="audio-text">音效: 关</span>
+      </button>
+      <button id="btn-guide" class="p-2 text-slate-400 hover:text-white bg-slate-800/60 hover:bg-slate-700/60 border border-slate-700/60 rounded-lg transition text-xs flex items-center gap-1" title="使用说明与物理原理">
+        <span>📖</span>
+        <span class="hidden xl:inline text-[11px]">原理说明</span>
+      </button>
+      <button id="btn-fullscreen" class="p-2 text-slate-400 hover:text-white bg-slate-800/60 hover:bg-slate-700/60 border border-slate-700/60 rounded-lg transition text-xs" title="全屏切换">
+        <span>⛶</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main View Area: Canvas + Floating Panels -->
+  <main class="relative flex-1 w-full h-[calc(100vh-3.5rem)] overflow-hidden bg-slate-950">
+    <!-- Simulation Canvas -->
+    <canvas id="sim-canvas" class="w-full h-full block cursor-grab active:cursor-grabbing"></canvas>
+
+    <!-- Top Floating Quick Controls / Status Badge -->
+    <div class="absolute top-3 left-4 pointer-events-none flex flex-col gap-2 z-10">
+      <div class="pointer-events-auto glass-panel px-3.5 py-2 rounded-xl flex items-center gap-3 text-xs shadow-lg">
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span id="status-mode-label" class="font-semibold text-slate-200">太阳系天体运转模型</span>
+        </div>
+        <div class="h-3 w-px bg-slate-700"></div>
+        <div class="text-slate-400 font-mono-code text-[11px] flex items-center gap-1">
+          <span>模拟纪元:</span>
+          <span id="sim-time-display" class="text-sky-300 font-medium">第 1.00 年 (365 天)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Solar System Quick Planet Picker (Only in Solar Mode) -->
+    <div id="solar-planet-bar" class="absolute top-3 right-4 z-10 flex items-center gap-1 glass-panel p-1.5 rounded-xl text-xs overflow-x-auto max-w-[calc(100vw-2rem)] sm:max-w-none shadow-lg">
+      <button data-planet="sun" class="planet-btn px-2.5 py-1 rounded-lg hover:bg-slate-700/60 text-slate-300 font-medium transition flex items-center gap-1">
+        <span class="w-2 h-2 rounded-full bg-amber-400"></span>太阳
+      </button>
+      <button data-planet="mercury" class="planet-btn px-2 py-1 rounded-lg hover:bg-slate-700/60 text-slate-300 transition flex items-center gap-1">
+        <span class="w-2 h-2 rounded-full bg-zinc-400"></span>水星
+      </button>
+      <button data-planet="venus" class="planet-btn px-2 py-1 rounded-lg hover:bg-slate-700/60 text-slate-300 transition flex items-center gap-1">
+        <span class="w-2 h-2 rounded-full bg-amber-200"></span>金星
+      </button>
+      <button data-planet="earth" class="planet-btn px-2 py-1 rounded-lg hover:bg-slate-700/60 text-slate-300 transition flex items-center gap-1">
+        <span class="w-2 h-2 rounded-full bg-sky-400"></span>地球
+      </button>
+      <button data-planet="mars" class="planet-btn px-2 py-1 rounded-lg hover:bg-slate-700/60 text-slate-300 transition flex items-center gap-1">
+        <span class="w-2 h-2 rounded-full bg-rose-500"></span>火星
+      </button>
+      <button data-planet="jupiter" class="planet-btn px-2 py-1 rounded-lg hover:bg-slate-700/60 text-slate-300 transition flex items-center gap-1">
+        <span class="w-2 h-2 rounded-full bg-amber-600"></span>木星
+      </button>
+      <button data-planet="saturn" class="planet-btn px-2 py-1 rounded-lg hover:bg-slate-700/60 text-slate-300 transition flex items-center gap-1">
+        <span class="w-2 h-2 rounded-full bg-yellow-600"></span>土星
+      </button>
+      <button data-planet="uranus" class="planet-btn px-2 py-1 rounded-lg hover:bg-slate-700/60 text-slate-300 transition flex items-center gap-1">
+        <span class="w-2 h-2 rounded-full bg-cyan-400"></span>天王星
+      </button>
+      <button data-planet="neptune" class="planet-btn px-2 py-1 rounded-lg hover:bg-slate-700/60 text-slate-300 transition flex items-center gap-1">
+        <span class="w-2 h-2 rounded-full bg-blue-500"></span>海王星
+      </button>
+      <button data-planet="halley" class="planet-btn px-2 py-1 rounded-lg hover:bg-slate-700/60 text-indigo-300 transition flex items-center gap-1">
+        <span class="w-2 h-2 rounded-full bg-indigo-400"></span>哈雷彗星
+      </button>
+    </div>
+
+    <!-- Right Drawer: Information & Experiment Controls -->
+    <aside id="info-drawer" class="absolute top-16 right-4 bottom-24 w-80 max-w-[calc(100vw-2rem)] glass-panel rounded-2xl p-4 flex flex-col z-10 shadow-2xl transition-all duration-300 overflow-hidden">
+      <!-- Drawer Header with Toggle -->
+      <div class="flex items-center justify-between pb-3 border-b border-slate-700/60 shrink-0">
+        <div class="flex items-center gap-2">
+          <span id="drawer-icon" class="text-base">📋</span>
+          <h2 id="drawer-title" class="font-semibold text-sm text-white">天体物理档案</h2>
+        </div>
+        <button id="btn-toggle-drawer" class="text-slate-400 hover:text-white p-1 rounded-md hover:bg-slate-800 text-xs">
+          ✕
+        </button>
+      </div>
+
+      <!-- Drawer Content Container (Dynamic depending on active mode) -->
+      <div id="drawer-body" class="flex-1 overflow-y-auto pt-3 pr-1 space-y-3.5 text-xs">
+        <!-- Content will be injected or toggled via JS based on current tab/selection -->
+      </div>
+    </aside>
+
+    <!-- Mini Re-Open Drawer Button when closed -->
+    <button id="btn-open-drawer" class="hidden absolute top-16 right-4 z-10 glass-panel px-3 py-2 rounded-xl text-xs text-sky-400 font-medium hover:bg-slate-800 transition flex items-center gap-1.5 shadow-lg">
+      <span>📊</span>
+      <span>参数面板</span>
+    </button>
+
+    <!-- Bottom Interactive Control Dock -->
+    <div class="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 w-[95%] max-w-4xl glass-panel p-2.5 rounded-2xl shadow-2xl flex flex-wrap items-center justify-between gap-3">
+      <!-- Playback Controls -->
+      <div class="flex items-center gap-1.5 shrink-0">
+        <button id="btn-step-back" class="p-2 text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 rounded-xl transition" title="单步后退">
+          ⏮
+        </button>
+        <button id="btn-play-pause" class="px-3.5 py-2 text-white bg-sky-600 hover:bg-sky-500 rounded-xl font-medium transition flex items-center gap-1.5 shadow-lg shadow-sky-600/30" title="播放 / 暂停 (空格键)">
+          <span id="play-pause-icon">⏸</span>
+          <span id="play-pause-text" class="text-xs font-semibold">暂停</span>
+        </button>
+        <button id="btn-step-forward" class="p-2 text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 rounded-xl transition" title="单步前进">
+          ⏭
+        </button>
+        <button id="btn-reset-time" class="p-2 text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 rounded-xl transition text-xs" title="重置时间">
+          🔄
+        </button>
+      </div>
+
+      <!-- Speed Control Slider -->
+      <div class="flex items-center gap-2 flex-1 min-w-[160px] max-w-xs">
+        <span class="text-[11px] text-slate-400 shrink-0">流速:</span>
+        <input id="slider-speed" type="range" min="0" max="100" value="40" class="w-full">
+        <span id="speed-label" class="text-[11px] font-mono-code text-sky-400 w-12 text-right shrink-0">1.0x</span>
+      </div>
+
+      <!-- Mode-specific View Toggles / Layer Controls -->
+      <div class="flex items-center gap-1.5 text-xs flex-wrap">
+        <!-- Scale Mode Toggle (Solar System only) -->
+        <button id="btn-scale-mode" class="px-2.5 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition flex items-center gap-1 text-[11px]" title="切换观测视距比例与真实尺度">
+          <span>🔭</span>
+          <span id="scale-mode-text">对数视距</span>
+        </button>
+
+        <!-- 3D Perspective Tilt Button -->
+        <button id="btn-perspective-view" class="px-2.5 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition flex items-center gap-1 text-[11px]" title="切换俯视平面与3D立体视角">
+          <span>🪐</span>
+          <span id="perspective-text">立体3D</span>
+        </button>
+
+        <!-- Overlay Layers Dropdown / Popover -->
+        <div class="relative">
+          <button id="btn-layers-menu" class="px-2.5 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition flex items-center gap-1 text-[11px]">
+            <span>👁️</span>
+            <span>图层</span>
+          </button>
+          
+          <div id="layers-dropdown" class="hidden absolute bottom-12 right-0 w-48 glass-panel p-2 rounded-xl shadow-xl flex flex-col gap-1.5 z-30">
+            <label class="flex items-center gap-2 p-1.5 hover:bg-slate-800/60 rounded-lg cursor-pointer text-xs">
+              <input id="chk-orbits" type="checkbox" checked class="rounded accent-sky-500">
+              <span>行星轨道线条</span>
+            </label>
+            <label class="flex items-center gap-2 p-1.5 hover:bg-slate-800/60 rounded-lg cursor-pointer text-xs">
+              <input id="chk-vectors" type="checkbox" checked class="rounded accent-sky-500">
+              <span>速度与引力矢量</span>
+            </label>
+            <label class="flex items-center gap-2 p-1.5 hover:bg-slate-800/60 rounded-lg cursor-pointer text-xs">
+              <input id="chk-habitable" type="checkbox" checked class="rounded accent-sky-500">
+              <span>太阳宜居带 (Goldilocks)</span>
+            </label>
+            <label class="flex items-center gap-2 p-1.5 hover:bg-slate-800/60 rounded-lg cursor-pointer text-xs">
+              <input id="chk-asteroids" type="checkbox" checked class="rounded accent-sky-500">
+              <span>小行星带微粒群</span>
+            </label>
+            <label class="flex items-center gap-2 p-1.5 hover:bg-slate-800/60 rounded-lg cursor-pointer text-xs">
+              <input id="chk-labels" type="checkbox" checked class="rounded accent-sky-500">
+              <span>天体中文名称标注</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Camera Center Reset -->
+        <button id="btn-camera-reset" class="px-2.5 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition text-[11px]" title="摄像机镜头居中回归">
+          🎯 镜头居中
+        </button>
+      </div>
+    </div>
+
+    <!-- Interactive Canvas Hint overlay -->
+    <div id="canvas-hint" class="absolute bottom-20 left-4 pointer-events-none text-[11px] text-slate-500 glass-panel px-2.5 py-1.5 rounded-lg opacity-70">
+      💡 滚轮缩放 · 拖拽平移 · 右键/按住Shift拖拽调整3D倾角 · 单击天体追踪聚焦
+    </div>
+  </main>
+
+  <!-- Physics & Astronomical Guide Modal -->
+  <div id="guide-modal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="glass-panel w-full max-w-2xl max-h-[85vh] rounded-2xl flex flex-col shadow-2xl border border-slate-700/80 overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">🌌</span>
+          <h3 class="font-bold text-base text-white">天体运行与引力动力学物理原理指南</h3>
+        </div>
+        <button id="btn-close-guide" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800">
+          ✕
+        </button>
+      </div>
+      <div class="p-6 overflow-y-auto space-y-4 text-xs text-slate-300 leading-relaxed">
+        <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+          <h4 class="font-semibold text-sky-400 text-sm mb-1.5">一、开普勒三大行星运动定律 (Kepler's Laws)</h4>
+          <ul class="list-disc list-inside space-y-1.5 text-slate-300">
+            <li><strong>第一定律（椭圆定律）：</strong>所有行星绕太阳运转的轨道都是椭圆，太阳处在椭圆的一个焦点上。椭圆方程为 $r(\theta) = \frac{a(1-e^2)}{1 + e\cos\theta}$，其中 $a$ 为半长轴，$e$ 为离心率。</li>
+            <li><strong>第二定律（面积定律）：</strong>太阳与行星的连线（向径）在相等的时间内扫过相等的面积，即角动量守恒 $\frac{dA}{dt} = \frac{1}{2} r^2 \frac{d\theta}{dt} = \text{常数}$。行星在近日点运行最快，远日点最慢。</li>
+            <li><strong>第三定律（周期定律）：</strong>所有行星公转周期的平方与它们轨道半长轴的立方成正比，即 $\frac{a^3}{T^2} = \frac{G(M_\odot + m)}{4\pi^2} \approx \text{常数}$。</li>
+          </ul>
+        </div>
+
+        <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+          <h4 class="font-semibold text-emerald-400 text-sm mb-1.5">二、牛顿万有引力与多体问题 (N-Body Problem)</h4>
+          <p class="mb-2">两个天体之间的相互引力遵循反平方律：$\vec{F}_{12} = -G \frac{m_1 m_2}{r^3} \vec{r}$。二体问题拥有精确的解析解（椭圆、双曲线或抛物线），而三体及以上的多体引力系统在数学上通常是非线性混沌的，需要采用辛积分算法（如 Verlet 积分）进行长时间数值模拟。</p>
+          <p>本实验室预设了著名的<strong>欧拉-摩尔三体8字形轨道</strong>（等质量在8字闭合轨道运动）、<strong>拉格朗日点 (L1-L5)</strong> 与特洛伊小行星带、以及<strong>双星系统</strong>。</p>
+        </div>
+
+        <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+          <h4 class="font-semibold text-amber-400 text-sm mb-1.5">三、霍曼转移轨道 (Hohmann Transfer)</h4>
+          <p>航天器在同平面的两条共面圆轨道之间转移时最节省燃料的脉冲变轨椭圆轨道：</p>
+          <ul class="list-disc list-inside space-y-1 mt-1 text-slate-300">
+            <li>转移轨道近日点等于出发轨道半径 $r_1$，远日点等于目标轨道半径 $r_2$；</li>
+            <li>在近日点切向点火加速 $\Delta v_1 = \sqrt{\frac{\mu}{r_1}}\left(\sqrt{\frac{2r_2}{r_1+r_2}} - 1\right)$；</li>
+            <li>在远日点再次切向点火加速 $\Delta v_2 = \sqrt{\frac{\mu}{r_2}}\left(1 - \sqrt{\frac{2r_1}{r_1+r_2}}\right)$ 圆化进入目标轨道。</li>
+          </ul>
+        </div>
+      </div>
+      <div class="px-6 py-3 border-t border-slate-800 bg-slate-900/50 flex justify-end">
+        <button id="btn-close-guide-footer" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-medium transition">
+          我知道了，开始探索
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- In-Page Toast for Notifications -->
+  <div id="toast" class="fixed top-16 left-1/2 -translate-x-1/2 z-50 glass-panel px-4 py-2 rounded-xl text-xs text-white opacity-0 transition-opacity duration-300 pointer-events-none border border-sky-500/40 shadow-xl flex items-center gap-2">
+    <span id="toast-icon">✨</span>
+    <span id="toast-message">操作成功</span>
+  </div>
+
+  <!-- Complete Simulator JavaScript Logic -->
+  <script>
+    // --- State & Constants ---
+    const STATE = {
+      mode: 'solar', // 'solar', 'kepler', 'nbody', 'hohmann'
+      isPlaying: true,
+      simTime: 0, // In Earth years for solar mode
+      speedMultiplier: 1.0,
+      scaleMode: 'log', // 'log' (orrery) or 'real' (true astronomical scale)
+      is3D: true,
+      pitch: 0.55, // Radians of tilt
+      yaw: 0.0,
+      zoom: 1.0,
+      panX: 0,
+      panY: 0,
+      selectedPlanet: 'earth',
+      trackedBody: 'earth', // 'none' or planet key
+      isDragging: false,
+      dragStartX: 0,
+      dragStartY: 0,
+      isRightDragging: false,
+      // Layer toggles
+      showOrbits: true,
+      showVectors: true,
+      showHabitable: true,
+      showAsteroids: true,
+      showLabels: true,
+      // Kepler Mode specific state
+      kepler: {
+        tab: 'first', // 'first', 'second', 'third'
+        semiMajor: 1.0, // AU
+        eccentricity: 0.5,
+        theta: 0,
+        showSectors: true,
+        sectorInterval: 0.12, // fraction of period
+        historySectors: [],
+        lastSectorTime: 0
+      },
+      // N-Body Sandbox state
+      nbody: {
+        preset: 'figure8', // 'figure8', 'lagrange', 'binary', 'chaos', 'slingshot'
+        G: 1.0,
+        bodies: [],
+        launchMass: 0.01,
+        isAiming: false,
+        aimStart: { x: 0, y: 0 },
+        aimCurrent: { x: 0, y: 0 },
+        trails: []
+      },
+      // Hohmann Transfer state
+      hohmann: {
+        step: 0, // 0: parked, 1: burn1, 2: coast, 3: burn2, 4: rendezvous
+        r1: 1.0, // Earth
+        r2: 1.524, // Mars
+        time: 0,
+        craftAngle: 0,
+        targetAngle: 0.77, // Mars phase angle lead
+        hasFired1: false,
+        hasFired2: false
+      },
+      audioEnabled: false
+    };
+
+    // --- Astronomical Solar System Data ---
+    const SOLAR_DATA = {
+      sun: {
+        name: '太阳',
+        enName: 'The Sun',
+        color: '#f59e0b',
+        glowColor: '#fbbf24',
+        radius: 20, // Render radius in pixels
+        a: 0, // AU
+        e: 0,
+        period: 0,
+        speed: 0,
+        diameter: '1,392,700 km (109倍地球)',
+        mass: '1.989 × 10³⁰ kg (占太阳系99.86%)',
+        temp: '5,500 °C (核心 15,000,000 °C)',
+        facts: '太阳是一颗黄矮星（光谱型 G2V），通过核心氢聚变为氦产生源源不断的能量，已稳定燃烧46亿年。'
+      },
+      mercury: {
+        name: '水星',
+        enName: 'Mercury',
+        color: '#9ca3af',
+        radius: 4,
+        a: 0.387,
+        e: 0.2056,
+        period: 0.241, // 88 days
+        speed: 47.4, // km/s
+        diameter: '4,879 km',
+        mass: '3.30 × 10²³ kg',
+        temp: '-180 °C 至 430 °C',
+        facts: '水星近日点存在微小进动（每百年43角秒），爱因斯坦广义相对论时空弯曲理论完美解释了该引力异常。'
+      },
+      venus: {
+        name: '金星',
+        enName: 'Venus',
+        color: '#fde047',
+        radius: 6.5,
+        a: 0.723,
+        e: 0.0068,
+        period: 0.615, // 225 days
+        speed: 35.0,
+        diameter: '12,104 km',
+        mass: '4.87 × 10²⁴ kg',
+        temp: '465 °C (浓厚二氧化碳失控温室)',
+        facts: '全天最明亮的行星（长庚星/启明星），自转方向自东向西逆向旋转，且自转周期（243天）比公转周期还要长。'
+      },
+      earth: {
+        name: '地球',
+        enName: 'Earth',
+        color: '#38bdf8',
+        radius: 7,
+        a: 1.000,
+        e: 0.0167,
+        period: 1.000, // 365.25 days
+        speed: 29.8,
+        diameter: '12,742 km',
+        mass: '5.97 × 10²⁴ kg',
+        temp: '平均 15 °C',
+        facts: '人类唯一的生命摇篮，拥有适宜的液态水海洋、活跃的地磁场与富氧大气层。拥有天然卫星——月球。'
+      },
+      mars: {
+        name: '火星',
+        enName: 'Mars',
+        color: '#f43f5e',
+        radius: 5,
+        a: 1.524,
+        e: 0.0934,
+        period: 1.881, // 687 days
+        speed: 24.1,
+        diameter: '6,779 km',
+        mass: '6.42 × 10²³ kg',
+        temp: '-140 °C 至 20 °C',
+        facts: '地表富含氧化铁呈现橘红色，拥有太阳系最大火山——奥林匹斯山（高21公里）以及巨大的水手大峡谷。'
+      },
+      jupiter: {
+        name: '木星',
+        enName: 'Jupiter',
+        color: '#d97706',
+        radius: 15,
+        a: 5.204,
+        e: 0.0485,
+        period: 11.86,
+        speed: 13.1,
+        diameter: '139,820 km (体积为地球1321倍)',
+        mass: '1.898 × 10²⁷ kg (其他行星总和的2.5倍)',
+        temp: '-110 °C (云顶)',
+        facts: '太阳系“行星之王”，强大的引力场如同清道夫吸收了大量彗星与小行星撞击；著名的大红斑为持续数百年的超级反气旋风暴。'
+      },
+      saturn: {
+        name: '土星',
+        enName: 'Saturn',
+        color: '#eab308',
+        hasRing: true,
+        radius: 13,
+        a: 9.582,
+        e: 0.0555,
+        period: 29.46,
+        speed: 9.7,
+        diameter: '116,460 km',
+        mass: '5.68 × 10²⁶ kg',
+        temp: '-140 °C',
+        facts: '以壮观的土星环系闻名，主要由数十亿颗细微水冰微粒和岩石碎片组成，平均厚度仅数十米却延伸数十万公里。'
+      },
+      uranus: {
+        name: '天王星',
+        enName: 'Uranus',
+        color: '#22d3ee',
+        radius: 9,
+        a: 19.20,
+        e: 0.0463,
+        period: 84.01,
+        speed: 6.8,
+        diameter: '50,724 km',
+        mass: '8.68 × 10²⁵ kg',
+        temp: '-195 °C (太阳系最寒冷行星)',
+        facts: '冰巨星，自转轴近乎98度横卧公转轨道面上，“躺着”绕太阳打滚运行，导致极端的极昼极夜现象。'
+      },
+      neptune: {
+        name: '海王星',
+        enName: 'Neptune',
+        color: '#3b82f6',
+        radius: 9,
+        a: 30.05,
+        e: 0.0095,
+        period: 164.8,
+        speed: 5.4,
+        diameter: '49,244 km',
+        mass: '1.02 × 10²⁶ kg',
+        temp: '-200 °C',
+        facts: '“笔尖上发现的行星”，天文学家通过天王星轨道摄动推算其引力位置后直接在望远镜中证实；拥有超音速狂风（时速达2100公里）。'
+      },
+      halley: {
+        name: '哈雷彗星',
+        enName: "Halley's Comet",
+        color: '#a5b4fc',
+        radius: 3,
+        a: 17.83,
+        e: 0.967, // Highly eccentric
+        period: 75.3,
+        speed: '近日点 54.5 / 远日点 0.9',
+        diameter: '15 × 8 km (核)',
+        mass: '2.2 × 10¹⁴ kg',
+        temp: '近日点约 77 °C',
+        facts: '著名的周期彗星，公转轨道呈极度扁长的逆行椭圆；近日点时受太阳风蒸发喷射出绵延数百万公里的辉煌彗尾！'
+      }
+    };
+
+    // --- Procedural Starfield & Asteroid Belt ---
+    const STARS = [];
+    for (let i = 0; i < 350; i++) {
+      STARS.push({
+        x: (Math.random() - 0.5) * 4000,
+        y: (Math.random() - 0.5) * 4000,
+        z: (Math.random() - 0.5) * 4000,
+        radius: Math.random() * 1.6 + 0.3,
+        brightness: Math.random() * 0.7 + 0.3,
+        twinkleSpeed: Math.random() * 2 + 1
+      });
+    }
+
+    const ASTEROIDS = [];
+    for (let i = 0; i < 450; i++) {
+      // Main Asteroid belt between Mars (1.52 AU) and Jupiter (5.2 AU), around 2.2 - 3.4 AU
+      const dist = 2.2 + Math.random() * 1.2;
+      const angle = Math.random() * Math.PI * 2;
+      const zOffset = (Math.random() - 0.5) * 0.25;
+      ASTEROIDS.push({ dist, angle, zOffset, size: Math.random() * 1.2 + 0.5, speed: 1 / Math.pow(dist, 1.5) });
+    }
+
+    // --- Web Audio Synthesizer (Space Ambient & SFX) ---
+    let audioCtx = null;
+    let ambientDroneGain = null;
+
+    function initAudio() {
+      if (!audioCtx) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContext();
+
+        // Create cosmic ambient drone
+        const osc1 = audioCtx.createOscillator();
+        const osc2 = audioCtx.createOscillator();
+        const filter = audioCtx.createBiquadFilter();
+        ambientDroneGain = audioCtx.createGain();
+
+        osc1.type = 'sine';
+        osc1.frequency.value = 55; // A1
+        osc2.type = 'triangle';
+        osc2.frequency.value = 82.4; // E2
+
+        filter.type = 'lowpass';
+        filter.frequency.value = 220;
+
+        ambientDroneGain.gain.value = STATE.audioEnabled ? 0.08 : 0;
+
+        osc1.connect(filter);
+        osc2.connect(filter);
+        filter.connect(ambientDroneGain);
+        ambientDroneGain.connect(audioCtx.destination);
+
+        osc1.start();
+        osc2.start();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    function playTone(freq, type = 'sine', duration = 0.25, gainVal = 0.1) {
+      if (!STATE.audioEnabled) return;
+      try {
+        initAudio();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(gainVal, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // --- Kepler's Equation Solver ---
+    function solveKepler(M, e) {
+      let E = M;
+      for (let i = 0; i < 8; i++) {
+        const d = (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
+        E -= d;
+        if (Math.abs(d) < 1e-7) break;
+      }
+      return E;
+    }
+
+    // --- Canvas & Rendering Setup ---
+    const canvas = document.getElementById('sim-canvas');
+    const ctx = canvas.getContext('2d');
+    let width = 0;
+    let height = 0;
+    let dpr = 1;
+
+    function resizeCanvas() {
+      dpr = window.devicePixelRatio || 1;
+      width = canvas.parentElement.clientWidth;
+      height = canvas.parentElement.clientHeight;
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      ctx.scale(dpr, dpr);
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // --- 3D Projection Utilities ---
+    function project3D(x, y, z) {
+      // Rotate around Z axis (yaw)
+      const cosYaw = Math.cos(STATE.yaw);
+      const sinYaw = Math.sin(STATE.yaw);
+      const x1 = x * cosYaw - y * sinYaw;
+      const y1 = x * sinYaw + y * cosYaw;
+      const z1 = z;
+
+      // Rotate around X axis (pitch)
+      const pitch = STATE.is3D ? STATE.pitch : 0;
+      const cosPitch = Math.cos(pitch);
+      const sinPitch = Math.sin(pitch);
+      const x2 = x1;
+      const y2 = y1 * cosPitch - z1 * sinPitch;
+      const z2 = y1 * sinPitch + z1 * cosPitch;
+
+      // Project onto screen with pan and zoom
+      const screenX = (width / 2) + STATE.panX + x2 * STATE.zoom;
+      const screenY = (height / 2) + STATE.panY + y2 * STATE.zoom;
+
+      return { x: screenX, y: screenY, depth: z2 };
+    }
+
+    // Coordinate conversion based on scale mode
+    function getDisplayDistance(AU) {
+      if (AU === 0) return 0;
+      if (STATE.scaleMode === 'real') {
+        // Linear scale (1 AU = 45 pixels)
+        return AU * 48;
+      } else {
+        // Logarithmic / Orrery visual scale so outer planets fit gracefully
+        return Math.pow(AU, 0.58) * 115;
+      }
+    }
+
+    // --- Planet Position Calculation ---
+    function getPlanetState(key, tYears) {
+      const p = SOLAR_DATA[key];
+      if (key === 'sun') return { x: 0, y: 0, z: 0, r: 0, vx: 0, vy: 0, speed: 0 };
+
+      const a = p.a;
+      const e = p.e;
+      const T = p.period; // Period in Earth years
+
+      // Mean anomaly M = 2*pi * (t / T)
+      const M = (2 * Math.PI * (tYears / T)) % (2 * Math.PI);
+      const E = solveKepler(M, e);
+
+      // True anomaly nu and orbital radius r (in AU)
+      const cosNu = (Math.cos(E) - e) / (1 - e * Math.cos(E));
+      const sinNu = (Math.sqrt(1 - e * e) * Math.sin(E)) / (1 - e * Math.cos(E));
+      const nu = Math.atan2(sinNu, cosNu);
+      const r_AU = a * (1 - e * Math.cos(E));
+
+      // Visual scaled distance
+      const r_vis = getDisplayDistance(r_AU);
+
+      // Position in orbital plane
+      const x = r_vis * Math.cos(nu);
+      const y = r_vis * Math.sin(nu);
+      let z = 0;
+      if (key === 'halley') {
+        // Halley is inclined 18 degrees and retrograde
+        z = r_vis * Math.sin(nu) * 0.32;
+      }
+
+      // Orbital speed via vis-viva equation: v = sqrt(GM * (2/r - 1/a))
+      // Standard Earth speed is 29.8 km/s
+      const speedKmS = 29.8 * Math.sqrt(Math.max(0.01, (2 / r_AU) - (1 / a)));
+
+      // Velocity unit vector
+      const vx = -Math.sin(nu);
+      const vy = Math.cos(nu) + e;
+
+      return { x, y, z, r_AU, r_vis, nu, speedKmS, vx, vy };
+    }
+
+    // --- N-Body Integrator Setup ---
+    function initNBody(preset) {
+      STATE.nbody.preset = preset;
+      STATE.nbody.bodies = [];
+      STATE.nbody.trails = [];
+
+      if (preset === 'figure8') {
+        // Famous stable Figure-8 Three-Body choreography (Chenciner & Montgomery)
+        const m = 1.0;
+        const x1 = -0.97000436 * 140;
+        const y1 = 0.24308753 * 140;
+        const vx1 = 0.46620531 * 1.5;
+        const vy1 = 0.43236573 * 1.5;
+
+        STATE.nbody.bodies = [
+          { x: x1, y: y1, vx: vx1, vy: vy1, m: m, r: 8, color: '#38bdf8', name: '天体 1' },
+          { x: -x1, y: -y1, vx: vx1, vy: vy1, m: m, r: 8, color: '#f43f5e', name: '天体 2' },
+          { x: 0, y: 0, vx: -2 * vx1, vy: -2 * vy1, m: m, r: 8, color: '#fbbf24', name: '天体 3' }
+        ];
+      } else if (preset === 'lagrange') {
+        // Sun-Earth system with L1, L2, L3, L4, L5 and Trojan asteroids
+        const M_sun = 100;
+        const m_earth = 1.5;
+        const R = 180;
+        const omega = Math.sqrt(M_sun / (R * R * R)); // Circular orbit angular velocity
+
+        STATE.nbody.bodies = [
+          { x: 0, y: 0, vx: 0, vy: 0, m: M_sun, r: 16, color: '#f59e0b', name: '主恒星 (太阳)' },
+          { x: R, y: 0, vx: 0, vy: omega * R, m: m_earth, r: 7, color: '#38bdf8', name: '行星 (地球)' }
+        ];
+
+        // Add Trojan bodies around L4 and L5 (equilateral points, 60 deg ahead and behind)
+        for (let i = 0; i < 8; i++) {
+          const angle = Math.PI / 3 + (Math.random() - 0.5) * 0.15;
+          const rL4 = R * (1 + (Math.random() - 0.5) * 0.05);
+          const px = rL4 * Math.cos(angle);
+          const py = rL4 * Math.sin(angle);
+          const spd = omega * rL4;
+          STATE.nbody.bodies.push({
+            x: px, y: py,
+            vx: -spd * Math.sin(angle), vy: spd * Math.cos(angle),
+            m: 0.0001, r: 3, color: '#34d399', name: `特洛伊 L4-${i + 1}`
+          });
+        }
+      } else if (preset === 'binary') {
+        // Binary Star System with an circumbinary planet
+        const mStar = 40;
+        const d = 90;
+        const vStar = Math.sqrt((STATE.nbody.G * mStar) / (4 * d));
+
+        STATE.nbody.bodies = [
+          { x: -d, y: 0, vx: 0, vy: -vStar, m: mStar, r: 11, color: '#fbbf24', name: '恒星 α' },
+          { x: d, y: 0, vx: 0, vy: vStar, m: mStar, r: 11, color: '#f43f5e', name: '恒星 β' }
+        ];
+
+        // Circumbinary outer planet
+        const rPlan = 260;
+        const vPlan = Math.sqrt((STATE.nbody.G * (2 * mStar)) / rPlan) * 1.02;
+        STATE.nbody.bodies.push({
+          x: 0, y: rPlan, vx: -vPlan, vy: 0, m: 0.01, r: 5, color: '#38bdf8', name: '环双星系外行星'
+        });
+      } else if (preset === 'chaos') {
+        // Chaotic 3-body system
+        STATE.nbody.bodies = [
+          { x: -120, y: 50, vx: 0.2, vy: -0.3, m: 30, r: 9, color: '#ec4899', name: '恒星 A' },
+          { x: 130, y: 30, vx: -0.2, vy: 0.4, m: 30, r: 9, color: '#06b6d4', name: '恒星 B' },
+          { x: 0, y: -110, vx: 0.1, vy: -0.1, m: 30, r: 9, color: '#eab308', name: '恒星 C' }
+        ];
+      } else if (preset === 'slingshot') {
+        // Gravity Assist / Slingshot
+        STATE.nbody.bodies = [
+          { x: 0, y: 0, vx: 0, vy: 0, m: 120, r: 16, color: '#f59e0b', name: '太阳' },
+          { x: 180, y: 0, vx: 0, vy: 0.8, m: 8, r: 9, color: '#d97706', name: '木星' },
+          { x: -280, y: -40, vx: 0.65, vy: 0.1, m: 0.0001, r: 4, color: '#a855f7', name: '旅行者探测器' }
+        ];
+      }
+
+      // Initialize trails
+      STATE.nbody.trails = STATE.nbody.bodies.map(() => []);
+    }
+
+    // Step N-body physics using Symplectic Verlet Integrator
+    function stepNBody(dt) {
+      const bodies = STATE.nbody.bodies;
+      const G = STATE.nbody.G;
+      const eps = 12.0; // Softening parameter to prevent singularity
+
+      // Compute accelerations
+      const acc = bodies.map(() => ({ ax: 0, ay: 0 }));
+
+      for (let i = 0; i < bodies.length; i++) {
+        for (let j = i + 1; j < bodies.length; j++) {
+          const dx = bodies[j].x - bodies[i].x;
+          const dy = bodies[j].y - bodies[i].y;
+          const distSq = dx * dx + dy * dy + eps * eps;
+          const dist = Math.sqrt(distSq);
+          const force = (G * bodies[i].m * bodies[j].m) / distSq;
+
+          const fx = force * (dx / dist);
+          const fy = force * (dy / dist);
+
+          acc[i].ax += fx / bodies[i].m;
+          acc[i].ay += fy / bodies[i].m;
+          acc[j].ax -= fx / bodies[j].m;
+          acc[j].ay -= fy / bodies[j].m;
+        }
+      }
+
+      // Update positions and velocities
+      for (let i = 0; i < bodies.length; i++) {
+        const b = bodies[i];
+        b.vx += acc[i].ax * dt;
+        b.vy += acc[i].ay * dt;
+        b.x += b.vx * dt;
+        b.y += b.vy * dt;
+
+        // Record trail
+        if (!STATE.nbody.trails[i]) STATE.nbody.trails[i] = [];
+        STATE.nbody.trails[i].push({ x: b.x, y: b.y });
+        if (STATE.nbody.trails[i].length > 180) {
+          STATE.nbody.trails[i].shift();
+        }
+      }
+    }
+
+    // --- Hohmann Transfer Simulation Logic ---
+    function stepHohmann(dt) {
+      const h = STATE.hohmann;
+      const mu = 1.0; // Standard gravitational parameter
+
+      // Orbital angular velocities for circular orbits
+      const omega1 = Math.sqrt(mu / Math.pow(h.r1, 3)); // Earth
+      const omega2 = Math.sqrt(mu / Math.pow(h.r2, 3)); // Mars
+
+      // Transfer orbit semi-major axis: a_t = (r1 + r2) / 2
+      const a_t = (h.r1 + h.r2) / 2;
+      const e_t = (h.r2 - h.r1) / (h.r1 + h.r2);
+      const T_transfer = Math.PI * Math.sqrt(Math.pow(a_t, 3) / mu); // Half period
+
+      h.targetAngle += omega2 * dt * 0.8;
+
+      if (h.step === 0) {
+        // Parked in Earth low orbit
+        h.craftAngle += omega1 * dt * 0.8;
+      } else if (h.step === 1 || h.step === 2) {
+        // Coasting on Hohmann transfer ellipse
+        h.time += dt * 0.8;
+        const progress = Math.min(1.0, h.time / T_transfer);
+        
+        // Mean anomaly to true anomaly on transfer ellipse
+        const M = Math.PI * progress;
+        const E = solveKepler(M, e_t);
+        const cosNu = (Math.cos(E) - e_t) / (1 - e_t * Math.cos(E));
+        const sinNu = (Math.sqrt(1 - e_t * e_t) * Math.sin(E)) / (1 - e_t * Math.cos(E));
+        h.craftAngle = Math.atan2(sinNu, cosNu);
+
+        if (progress >= 1.0 && h.step === 2) {
+          h.step = 3; // Reached Mars aphelion rendezvous!
+        }
+      } else if (h.step === 3 || h.step === 4) {
+        // Final rendezvous circular orbit with target
+        h.craftAngle += omega2 * dt * 0.8;
+      }
+    }
+
+    // --- Main Render Functions ---
+    function render() {
+      ctx.clearRect(0, 0, width, height);
+
+      // 1. Draw Starry Background with parallax
+      drawStarfield();
+
+      // Camera Follow/Tracking
+      if (STATE.mode === 'solar' && STATE.trackedBody && STATE.trackedBody !== 'none' && STATE.trackedBody !== 'sun') {
+        const pState = getPlanetState(STATE.trackedBody, STATE.simTime);
+        const targetX = -pState.x * STATE.zoom;
+        const targetY = -pState.y * STATE.zoom * (STATE.is3D ? Math.cos(STATE.pitch) : 1);
+        STATE.panX += (targetX - STATE.panX) * 0.05;
+        STATE.panY += (targetY - STATE.panY) * 0.05;
+      } else if (STATE.trackedBody === 'sun') {
+        STATE.panX += (0 - STATE.panX) * 0.05;
+        STATE.panY += (0 - STATE.panY) * 0.05;
+      }
+
+      // Render Active Mode
+      if (STATE.mode === 'solar') {
+        renderSolarSystem();
+      } else if (STATE.mode === 'kepler') {
+        renderKeplerMode();
+      } else if (STATE.mode === 'nbody') {
+        renderNBodyMode();
+      } else if (STATE.mode === 'hohmann') {
+        renderHohmannMode();
+      }
+
+      // Advance physics loop if playing
+      if (STATE.isPlaying) {
+        const dt = (0.016 * STATE.speedMultiplier);
+        if (STATE.mode === 'solar') {
+          STATE.simTime += dt * 0.25; // 0.25 years per sec at 1x
+          document.getElementById('sim-time-display').textContent = `第 ${STATE.simTime.toFixed(2)} 年 (${Math.floor(STATE.simTime * 365.25)} 天)`;
+        } else if (STATE.mode === 'kepler') {
+          STATE.kepler.theta += dt * 1.5;
+        } else if (STATE.mode === 'nbody') {
+          stepNBody(dt * 0.8);
+        } else if (STATE.mode === 'hohmann') {
+          stepHohmann(dt * 0.6);
+        }
+      }
+
+      requestAnimationFrame(render);
+    }
+
+    // --- Draw Deep Space Starfield & Cosmic Dust ---
+    function drawStarfield() {
+      ctx.save();
+      for (let i = 0; i < STARS.length; i++) {
+        const s = STARS[i];
+        // Twinkle factor
+        const twinkle = 0.7 + 0.3 * Math.sin(Date.now() * 0.002 * s.twinkleSpeed + i);
+        const p = project3D(s.x, s.y, s.z);
+        if (p.x >= 0 && p.x <= width && p.y >= 0 && p.y <= height) {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, s.radius, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255, 255, 255, ${s.brightness * twinkle * 0.8})`;
+          ctx.fill();
+        }
+      }
+      ctx.restore();
+    }
+
+    // --- Mode 1: Solar System Orrery ---
+    function renderSolarSystem() {
+      const pSun = project3D(0, 0, 0);
+
+      // 1. Draw Habitable Zone (Goldilocks Zone ~ 0.95 to 1.37 AU)
+      if (STATE.showHabitable) {
+        ctx.save();
+        const rIn = getDisplayDistance(0.95);
+        const rOut = getDisplayDistance(1.37);
+        ctx.beginPath();
+        for (let a = 0; a <= Math.PI * 2 + 0.1; a += 0.1) {
+          const pt = project3D(rOut * Math.cos(a), rOut * Math.sin(a), 0);
+          if (a === 0) ctx.moveTo(pt.x, pt.y); else ctx.lineTo(pt.x, pt.y);
+        }
+        for (let a = Math.PI * 2; a >= 0; a -= 0.1) {
+          const pt = project3D(rIn * Math.cos(a), rIn * Math.sin(a), 0);
+          ctx.lineTo(pt.x, pt.y);
+        }
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(16, 185, 129, 0.06)';
+        ctx.fill();
+
+        // Subtle boundary stroke
+        ctx.strokeStyle = 'rgba(16, 185, 129, 0.2)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // 2. Draw Asteroid Belt Particles
+      if (STATE.showAsteroids) {
+        ctx.save();
+        for (let i = 0; i < ASTEROIDS.length; i++) {
+          const ast = ASTEROIDS[i];
+          const curAngle = ast.angle + (STATE.isPlaying ? STATE.simTime * ast.speed : 0);
+          const rVis = getDisplayDistance(ast.dist);
+          const pt = project3D(rVis * Math.cos(curAngle), rVis * Math.sin(curAngle), ast.zOffset * rVis);
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, ast.size, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(156, 163, 175, 0.45)';
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      // 3. Draw Orbit Curves
+      if (STATE.showOrbits) {
+        ctx.save();
+        Object.keys(SOLAR_DATA).forEach(key => {
+          if (key === 'sun') return;
+          const p = SOLAR_DATA[key];
+          ctx.beginPath();
+          const segments = key === 'halley' ? 120 : 72;
+          for (let i = 0; i <= segments; i++) {
+            const M = (i / segments) * Math.PI * 2;
+            const E = solveKepler(M, p.e);
+            const cosNu = (Math.cos(E) - p.e) / (1 - p.e * Math.cos(E));
+            const sinNu = (Math.sqrt(1 - p.e * p.e) * Math.sin(E)) / (1 - p.e * Math.cos(E));
+            const nu = Math.atan2(sinNu, cosNu);
+            const r_AU = p.a * (1 - p.e * Math.cos(E));
+            const r_vis = getDisplayDistance(r_AU);
+
+            const x = r_vis * Math.cos(nu);
+            const y = r_vis * Math.sin(nu);
+            const z = key === 'halley' ? r_vis * Math.sin(nu) * 0.32 : 0;
+            const pt = project3D(x, y, z);
+
+            if (i === 0) ctx.moveTo(pt.x, pt.y); else ctx.lineTo(pt.x, pt.y);
+          }
+          ctx.strokeStyle = key === 'halley' ? 'rgba(165, 180, 252, 0.35)' : 'rgba(100, 116, 139, 0.28)';
+          ctx.lineWidth = key === STATE.selectedPlanet ? 2 : 1;
+          if (key === STATE.selectedPlanet) {
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.8)';
+          }
+          ctx.stroke();
+        });
+        ctx.restore();
+      }
+
+      // 4. Draw Central Sun (Glowing radial gradient & corona)
+      ctx.save();
+      const sunGlowGrad = ctx.createRadialGradient(pSun.x, pSun.y, 4, pSun.x, pSun.y, 42);
+      sunGlowGrad.addColorStop(0, 'rgba(251, 191, 36, 1)');
+      sunGlowGrad.addColorStop(0.3, 'rgba(245, 158, 11, 0.8)');
+      sunGlowGrad.addColorStop(0.7, 'rgba(239, 68, 68, 0.25)');
+      sunGlowGrad.addColorStop(1, 'rgba(239, 68, 68, 0)');
+      ctx.beginPath();
+      ctx.arc(pSun.x, pSun.y, 42, 0, Math.PI * 2);
+      ctx.fillStyle = sunGlowGrad;
+      ctx.fill();
+
+      // Sun core
+      ctx.beginPath();
+      ctx.arc(pSun.x, pSun.y, SOLAR_DATA.sun.radius, 0, Math.PI * 2);
+      ctx.fillStyle = '#fef08a';
+      ctx.shadowColor = '#f59e0b';
+      ctx.shadowBlur = 18;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      if (STATE.showLabels) {
+        ctx.font = '500 11px Inter, sans-serif';
+        ctx.fillStyle = '#fef08a';
+        ctx.fillText('太阳', pSun.x + 16, pSun.y + 4);
+      }
+      ctx.restore();
+
+      // 5. Draw Each Planet & Moon
+      Object.keys(SOLAR_DATA).forEach(key => {
+        if (key === 'sun') return;
+        const p = SOLAR_DATA[key];
+        const state = getPlanetState(key, STATE.simTime);
+        const pt = project3D(state.x, state.y, state.z);
+
+        ctx.save();
+
+        // Highlight selection ring
+        if (key === STATE.selectedPlanet) {
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, p.radius + 6, 0, Math.PI * 2);
+          ctx.strokeStyle = '#38bdf8';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([3, 3]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+
+        // Halley's Comet glowing tail pointing away from Sun
+        if (key === 'halley') {
+          const tailDx = pt.x - pSun.x;
+          const tailDy = pt.y - pSun.y;
+          const tailLen = Math.min(80, 450 / Math.max(2, state.r_AU));
+          const tailEnd = {
+            x: pt.x + (tailDx / Math.hypot(tailDx, tailDy)) * tailLen,
+            y: pt.y + (tailDy / Math.hypot(tailDx, tailDy)) * tailLen
+          };
+
+          const cometGrad = ctx.createLinearGradient(pt.x, pt.y, tailEnd.x, tailEnd.y);
+          cometGrad.addColorStop(0, 'rgba(199, 210, 254, 0.9)');
+          cometGrad.addColorStop(0.5, 'rgba(129, 140, 248, 0.4)');
+          cometGrad.addColorStop(1, 'rgba(99, 102, 241, 0)');
+
+          ctx.beginPath();
+          ctx.moveTo(pt.x, pt.y);
+          ctx.lineTo(tailEnd.x - (tailDy / Math.hypot(tailDx, tailDy)) * 6, tailEnd.y + (tailDx / Math.hypot(tailDx, tailDy)) * 6);
+          ctx.lineTo(tailEnd.x + (tailDy / Math.hypot(tailDx, tailDy)) * 6, tailEnd.y - (tailDx / Math.hypot(tailDx, tailDy)) * 6);
+          ctx.closePath();
+          ctx.fillStyle = cometGrad;
+          ctx.fill();
+        }
+
+        // Saturn's Ring
+        if (p.hasRing) {
+          ctx.beginPath();
+          ctx.ellipse(pt.x, pt.y, p.radius * 2.2, p.radius * 0.75, STATE.pitch * 0.4 - 0.2, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(234, 179, 8, 0.65)';
+          ctx.lineWidth = 3.5;
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.ellipse(pt.x, pt.y, p.radius * 2.5, p.radius * 0.85, STATE.pitch * 0.4 - 0.2, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(202, 138, 4, 0.35)';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+
+        // Planet body
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, p.radius, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 6;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Earth's Moon
+        if (key === 'earth') {
+          const moonDist = 18;
+          const moonAngle = STATE.simTime * 2 * Math.PI * 13.3; // 13.3 lunar months per year
+          const moonPt = {
+            x: pt.x + moonDist * Math.cos(moonAngle),
+            y: pt.y + moonDist * Math.sin(moonAngle) * (STATE.is3D ? Math.cos(STATE.pitch) : 1)
+          };
+          ctx.beginPath();
+          ctx.arc(moonPt.x, moonPt.y, 2.2, 0, Math.PI * 2);
+          ctx.fillStyle = '#e2e8f0';
+          ctx.fill();
+        }
+
+        // Vectors: Velocity (Green) & Gravitational Force (Red)
+        if (STATE.showVectors) {
+          // Velocity vector (tangential)
+          const vScale = 0.6;
+          const vLen = Math.hypot(state.vx, state.vy) || 1;
+          const nVx = (state.vx / vLen) * 24 * vScale;
+          const nVy = (state.vy / vLen) * 24 * vScale;
+          const vEnd = {
+            x: pt.x + nVx,
+            y: pt.y + nVy * (STATE.is3D ? Math.cos(STATE.pitch) : 1)
+          };
+          ctx.beginPath();
+          ctx.moveTo(pt.x, pt.y);
+          ctx.lineTo(vEnd.x, vEnd.y);
+          ctx.strokeStyle = '#10b981'; // Green velocity
+          ctx.lineWidth = 1.8;
+          ctx.stroke();
+
+          // Force vector pointing to Sun
+          const fEnd = {
+            x: pt.x + (pSun.x - pt.x) * 0.12,
+            y: pt.y + (pSun.y - pt.y) * 0.12
+          };
+          ctx.beginPath();
+          ctx.moveTo(pt.x, pt.y);
+          ctx.lineTo(fEnd.x, fEnd.y);
+          ctx.strokeStyle = '#f43f5e'; // Red gravity force
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+
+        // Label
+        if (STATE.showLabels) {
+          ctx.font = '500 10.5px Inter, sans-serif';
+          ctx.fillStyle = '#cbd5e1';
+          ctx.fillText(p.name, pt.x + p.radius + 4, pt.y + 3);
+        }
+
+        ctx.restore();
+      });
+    }
+
+    // --- Mode 2: Kepler's Laws Lab ---
+    function renderKeplerMode() {
+      const a = STATE.kepler.semiMajor * 160;
+      const e = STATE.kepler.eccentricity;
+      const b = a * Math.sqrt(Math.max(0.01, 1 - e * e));
+      const c = a * e; // Focus distance from center
+
+      const center = { x: width / 2 + STATE.panX, y: height / 2 + STATE.panY };
+      const focusSun = { x: center.x - c, y: center.y }; // Primary focus (Sun)
+      const focusEmpty = { x: center.x + c, y: center.y }; // Secondary focus
+
+      ctx.save();
+
+      // 1. Draw Coordinate Grid & Major/Minor Axes
+      ctx.strokeStyle = 'rgba(75, 85, 99, 0.25)';
+      ctx.lineWidth = 1;
+      // Semi-major axis line
+      ctx.beginPath();
+      ctx.moveTo(center.x - a - 40, center.y);
+      ctx.lineTo(center.x + a + 40, center.y);
+      ctx.stroke();
+      // Semi-minor axis line
+      ctx.beginPath();
+      ctx.moveTo(center.x, center.y - b - 30);
+      ctx.lineTo(center.x, center.y + b + 30);
+      ctx.stroke();
+
+      // 2. Draw Elliptical Orbit
+      ctx.beginPath();
+      ctx.ellipse(center.x, center.y, a, b, 0, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.8)';
+      ctx.lineWidth = 2.2;
+      ctx.stroke();
+
+      // Calculate Planet position on ellipse via Kepler's equation
+      const periodSec = 8.0;
+      const M = (STATE.kepler.theta) % (Math.PI * 2);
+      const E = solveKepler(M, e);
+      const px = center.x - a * Math.cos(E);
+      const py = center.y + b * Math.sin(E);
+
+      // Distance from Sun focus
+      const r = Math.hypot(px - focusSun.x, py - focusSun.y);
+
+      // --- Mode: Kepler's 2nd Law (Equal Areas in Equal Times) ---
+      if (STATE.kepler.tab === 'second' && STATE.kepler.showSectors) {
+        // Record and display swept sectors
+        const sectorTimeStep = Math.PI * 2 * STATE.kepler.sectorInterval;
+        const currentSectorIdx = Math.floor(M / sectorTimeStep);
+
+        // Keep 4 sectors around the orbit (Perihelion sector vs Aphelion sector)
+        const sectors = [
+          { name: '近日点附近扇区', startM: -0.2, endM: -0.2 + sectorTimeStep, color: 'rgba(245, 158, 11, 0.25)', stroke: '#f59e0b' },
+          { name: '远日点附近扇区', startM: Math.PI - sectorTimeStep / 2, endM: Math.PI + sectorTimeStep / 2, color: 'rgba(56, 189, 248, 0.25)', stroke: '#38bdf8' }
+        ];
+
+        sectors.forEach(sec => {
+          ctx.beginPath();
+          ctx.moveTo(focusSun.x, focusSun.y);
+          for (let m = sec.startM; m <= sec.endM + 0.02; m += 0.05) {
+            const eAnom = solveKepler((m + Math.PI * 2) % (Math.PI * 2), e);
+            const sx = center.x - a * Math.cos(eAnom);
+            const sy = center.y + b * Math.sin(eAnom);
+            ctx.lineTo(sx, sy);
+          }
+          ctx.closePath();
+          ctx.fillStyle = sec.color;
+          ctx.fill();
+          ctx.strokeStyle = sec.stroke;
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        });
+
+        // Dynamic swept ray from Sun to current planet position
+        ctx.beginPath();
+        ctx.moveTo(focusSun.x, focusSun.y);
+        ctx.lineTo(px, py);
+        ctx.strokeStyle = 'rgba(251, 191, 36, 0.9)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      // 3. Draw Foci (Sun at F1, Empty Focus at F2)
+      // Sun Focus F1
+      ctx.beginPath();
+      ctx.arc(focusSun.x, focusSun.y, 14, 0, Math.PI * 2);
+      ctx.fillStyle = '#f59e0b';
+      ctx.shadowColor = '#f59e0b';
+      ctx.shadowBlur = 12;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      ctx.fillStyle = '#fef08a';
+      ctx.font = '600 11px Inter, sans-serif';
+      ctx.fillText('焦点 F₁ (太阳)', focusSun.x - 30, focusSun.y - 18);
+
+      // Empty Focus F2
+      ctx.beginPath();
+      ctx.arc(focusEmpty.x, focusEmpty.y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = '#94a3b8';
+      ctx.fill();
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText('空焦点 F₂', focusEmpty.x - 20, focusEmpty.y - 10);
+
+      // Geometric Annotations: Perihelion (近日点) and Aphelion (远日点)
+      const periPt = { x: center.x - a, y: center.y };
+      const aphPt = { x: center.x + a, y: center.y };
+
+      // Perihelion point marker
+      ctx.beginPath();
+      ctx.arc(periPt.x, periPt.y, 3, 0, Math.PI * 2);
+      ctx.fillStyle = '#10b981';
+      ctx.fill();
+      ctx.fillText(`近日点 r_min = ${((1 - e) * STATE.kepler.semiMajor).toFixed(2)} AU`, periPt.x - 70, periPt.y + 18);
+
+      // Aphelion point marker
+      ctx.beginPath();
+      ctx.arc(aphPt.x, aphPt.y, 3, 0, Math.PI * 2);
+      ctx.fillStyle = '#f43f5e';
+      ctx.fill();
+      ctx.fillText(`远日点 r_max = ${((1 + e) * STATE.kepler.semiMajor).toFixed(2)} AU`, aphPt.x - 10, aphPt.y + 18);
+
+      // 4. Draw Orbiting Planet
+      ctx.beginPath();
+      ctx.arc(px, py, 9, 0, Math.PI * 2);
+      ctx.fillStyle = '#38bdf8';
+      ctx.shadowColor = '#38bdf8';
+      ctx.shadowBlur = 10;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Current Velocity vector (Vis-viva speed ~ sqrt(2/r - 1/a))
+      const normR = r / a;
+      const speedMag = Math.sqrt(Math.max(0.01, 2 / normR - 1)) * 36;
+      // Tangent direction
+      const vx = a * Math.sin(E);
+      const vy = b * Math.cos(E);
+      const vLen = Math.hypot(vx, vy);
+      const tx = (vx / vLen) * speedMag;
+      const ty = (vy / vLen) * speedMag;
+
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.lineTo(px + tx, py + ty);
+      ctx.strokeStyle = '#10b981';
+      ctx.lineWidth = 2.2;
+      ctx.stroke();
+
+      // Label on Planet
+      ctx.fillStyle = '#e0f2fe';
+      ctx.font = '500 11px Inter, sans-serif';
+      ctx.fillText(`行星 (v = ${(29.8 * Math.sqrt(Math.max(0.01, 2 / normR - 1))).toFixed(1)} km/s)`, px + 12, py - 6);
+
+      ctx.restore();
+    }
+
+    // --- Mode 3: N-Body Sandbox ---
+    function renderNBodyMode() {
+      const bodies = STATE.nbody.bodies;
+      const trails = STATE.nbody.trails;
+      const center = { x: width / 2 + STATE.panX, y: height / 2 + STATE.panY };
+
+      ctx.save();
+
+      // 1. Draw Orbit Trails
+      for (let i = 0; i < trails.length; i++) {
+        const tr = trails[i];
+        if (tr && tr.length > 1) {
+          ctx.beginPath();
+          for (let j = 0; j < tr.length; j++) {
+            const sx = center.x + tr[j].x * STATE.zoom;
+            const sy = center.y + tr[j].y * STATE.zoom;
+            if (j === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
+          }
+          ctx.strokeStyle = bodies[i] ? bodies[i].color + '55' : 'rgba(255,255,255,0.2)';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+      }
+
+      // 2. Draw Bodies
+      for (let i = 0; i < bodies.length; i++) {
+        const b = bodies[i];
+        const sx = center.x + b.x * STATE.zoom;
+        const sy = center.y + b.y * STATE.zoom;
+
+        // Glowing body
+        ctx.beginPath();
+        ctx.arc(sx, sy, b.r * Math.max(0.6, Math.min(2.0, STATE.zoom)), 0, Math.PI * 2);
+        ctx.fillStyle = b.color;
+        ctx.shadowColor = b.color;
+        ctx.shadowBlur = 10;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Velocity vector
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(sx + b.vx * 15 * STATE.zoom, sy + b.vy * 15 * STATE.zoom);
+        ctx.strokeStyle = '#10b981';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Name Tag
+        ctx.font = '500 10.5px Inter, sans-serif';
+        ctx.fillStyle = '#e2e8f0';
+        ctx.fillText(b.name, sx + b.r + 4, sy + 3);
+      }
+
+      // 3. Draw Aiming Launch Vector if user is dragging
+      if (STATE.nbody.isAiming) {
+        const start = STATE.nbody.aimStart;
+        const curr = STATE.nbody.aimCurrent;
+        ctx.beginPath();
+        ctx.moveTo(start.x, start.y);
+        ctx.lineTo(curr.x, curr.y);
+        ctx.strokeStyle = '#f43f5e';
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([4, 4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Planned launch probe indicator
+        ctx.beginPath();
+        ctx.arc(start.x, start.y, 6, 0, Math.PI * 2);
+        ctx.fillStyle = '#a855f7';
+        ctx.fill();
+      }
+
+      ctx.restore();
+    }
+
+    // --- Mode 4: Hohmann Transfer Orbit ---
+    function renderHohmannMode() {
+      const h = STATE.hohmann;
+      const center = { x: width / 2 + STATE.panX, y: height / 2 + STATE.panY };
+      const scale = 140; // Pixels per AU
+
+      const r1_px = h.r1 * scale; // 1.0 AU (Earth)
+      const r2_px = h.r2 * scale; // 1.524 AU (Mars)
+      const a_t_px = (r1_px + r2_px) / 2; // Semi-major axis of transfer ellipse
+      const c_t_px = (r2_px - r1_px) / 2; // Focus distance from center of transfer ellipse
+
+      ctx.save();
+
+      // 1. Central Sun
+      ctx.beginPath();
+      ctx.arc(center.x, center.y, 16, 0, Math.PI * 2);
+      ctx.fillStyle = '#f59e0b';
+      ctx.shadowColor = '#f59e0b';
+      ctx.shadowBlur = 14;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.font = '600 11px Inter, sans-serif';
+      ctx.fillStyle = '#fef08a';
+      ctx.fillText('太阳', center.x - 10, center.y - 20);
+
+      // 2. Earth Initial Circular Orbit (r1)
+      ctx.beginPath();
+      ctx.arc(center.x, center.y, r1_px, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+
+      // 3. Mars Target Circular Orbit (r2)
+      ctx.beginPath();
+      ctx.arc(center.x, center.y, r2_px, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(244, 63, 94, 0.4)';
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+
+      // 4. Hohmann Transfer Elliptical Arc
+      ctx.beginPath();
+      // Center of transfer ellipse is at (center.x + c_t_px, center.y)
+      const b_t_px = Math.sqrt(r1_px * r2_px);
+      ctx.ellipse(center.x + c_t_px, center.y, a_t_px, b_t_px, 0, Math.PI, Math.PI * 2);
+      ctx.strokeStyle = '#a855f7';
+      ctx.lineWidth = 2.4;
+      ctx.setLineDash([5, 4]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // 5. Positions of Earth and Mars
+      const earthPos = {
+        x: center.x - r1_px,
+        y: center.y
+      };
+      const marsPos = {
+        x: center.x + r2_px * Math.cos(h.targetAngle),
+        y: center.y + r2_px * Math.sin(h.targetAngle)
+      };
+
+      // Draw Earth (Departure planet)
+      ctx.beginPath();
+      ctx.arc(earthPos.x, earthPos.y, 8, 0, Math.PI * 2);
+      ctx.fillStyle = '#38bdf8';
+      ctx.fill();
+      ctx.fillText('地球 (出发地)', earthPos.x - 30, earthPos.y + 20);
+
+      // Draw Mars (Destination planet)
+      ctx.beginPath();
+      ctx.arc(marsPos.x, marsPos.y, 6.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#f43f5e';
+      ctx.fill();
+      ctx.fillText('火星 (目标地)', marsPos.x + 10, marsPos.y + 4);
+
+      // 6. Draw Spacecraft Position
+      let craftPos;
+      if (h.step === 0) {
+        craftPos = { ...earthPos };
+      } else if (h.step === 1 || h.step === 2) {
+        // Coasting on ellipse
+        const e_t = (h.r2 - h.r1) / (h.r1 + h.r2);
+        const rCraft = (a_t_px * (1 - e_t * e_t)) / (1 + e_t * Math.cos(h.craftAngle));
+        craftPos = {
+          x: center.x - rCraft * Math.cos(h.craftAngle),
+          y: center.y + rCraft * Math.sin(h.craftAngle)
+        };
+      } else {
+        // rendezvous
+        craftPos = { ...marsPos };
+      }
+
+      ctx.beginPath();
+      ctx.arc(craftPos.x, craftPos.y, 5, 0, Math.PI * 2);
+      ctx.fillStyle = '#fbbf24';
+      ctx.shadowColor = '#fbbf24';
+      ctx.shadowBlur = 8;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.fillText('🚀 飞船', craftPos.x + 8, craftPos.y - 8);
+
+      // Acceleration Burn Flame at Step 1 (Departure)
+      if (h.step === 1) {
+        ctx.beginPath();
+        ctx.moveTo(craftPos.x, craftPos.y);
+        ctx.lineTo(craftPos.x - 18, craftPos.y - 6);
+        ctx.strokeStyle = '#f97316';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    // --- Drawer & Content Updating ---
+    function updateDrawerContent() {
+      const body = document.getElementById('drawer-body');
+      const title = document.getElementById('drawer-title');
+      const icon = document.getElementById('drawer-icon');
+
+      if (STATE.mode === 'solar') {
+        const planet = SOLAR_DATA[STATE.selectedPlanet];
+        icon.textContent = '🪐';
+        title.textContent = `${planet.name} (${planet.enName})`;
+
+        body.innerHTML = `
+          <div class="glass-card p-3 rounded-xl space-y-2 border-l-4" style="border-left-color: ${planet.color}">
+            <div class="flex items-center justify-between">
+              <span class="text-slate-400 font-medium">天体类型</span>
+              <span class="text-slate-100 font-semibold">${STATE.selectedPlanet === 'sun' ? '主序黄矮星' : STATE.selectedPlanet === 'halley' ? '周期彗星' : '行星'}</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-slate-400">赤道直径</span>
+              <span class="font-mono-code text-slate-200">${planet.diameter}</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-slate-400">天体质量</span>
+              <span class="font-mono-code text-slate-200">${planet.mass}</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-slate-400">平均温度</span>
+              <span class="font-mono-code text-slate-200">${planet.temp}</span>
+            </div>
+          </div>
+
+          <div class="glass-card p-3 rounded-xl space-y-2">
+            <h4 class="font-semibold text-sky-400 text-xs">轨道运动参数</h4>
+            <div class="flex items-center justify-between">
+              <span class="text-slate-400">半长轴 (a)</span>
+              <span class="font-mono-code text-slate-200">${planet.a} AU (${(planet.a * 1.496e8).toLocaleString()} km)</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-slate-400">轨道离心率 (e)</span>
+              <span class="font-mono-code text-slate-200">${planet.e}</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-slate-400">公转周期 (T)</span>
+              <span class="font-mono-code text-slate-200">${planet.period} 地球年 (${(planet.period * 365.25).toFixed(1)} 天)</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-slate-400">公转速度 (v)</span>
+              <span class="font-mono-code text-emerald-400">${planet.speed} km/s</span>
+            </div>
+          </div>
+
+          <div class="glass-card p-3 rounded-xl space-y-1.5">
+            <h4 class="font-semibold text-amber-400 text-xs">天文科普要闻</h4>
+            <p class="text-[11px] text-slate-300 leading-relaxed">${planet.facts}</p>
+          </div>
+
+          <div class="pt-1 flex gap-2">
+            <button id="btn-focus-current" class="flex-1 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl font-medium transition text-xs shadow-md shadow-sky-600/30 flex items-center justify-center gap-1">
+              <span>🎯</span>
+              <span>跟踪锁定镜头</span>
+            </button>
+          </div>
+        `;
+
+        document.getElementById('btn-focus-current')?.addEventListener('click', () => {
+          STATE.trackedBody = STATE.selectedPlanet;
+          showToast(`已锁定跟踪: ${planet.name}`);
+        });
+
+      } else if (STATE.mode === 'kepler') {
+        icon.textContent = '📐';
+        title.textContent = '开普勒定律实验调控';
+
+        body.innerHTML = `
+          <!-- Kepler Sub-tabs -->
+          <div class="grid grid-cols-3 gap-1 bg-slate-900 p-1 rounded-xl text-[11px] mb-3">
+            <button id="k-tab-1" class="py-1 rounded-lg ${STATE.kepler.tab === 'first' ? 'bg-sky-600 text-white' : 'text-slate-400 hover:text-slate-200'}">第一定律</button>
+            <button id="k-tab-2" class="py-1 rounded-lg ${STATE.kepler.tab === 'second' ? 'bg-sky-600 text-white' : 'text-slate-400 hover:text-slate-200'}">第二定律</button>
+            <button id="k-tab-3" class="py-1 rounded-lg ${STATE.kepler.tab === 'third' ? 'bg-sky-600 text-white' : 'text-slate-400 hover:text-slate-200'}">第三定律</button>
+          </div>
+
+          <div class="glass-card p-3 rounded-xl space-y-3">
+            <div>
+              <div class="flex justify-between text-slate-400 mb-1">
+                <span>半长轴 (a)</span>
+                <span id="k-a-val" class="font-mono-code text-sky-400">${STATE.kepler.semiMajor.toFixed(2)} AU</span>
+              </div>
+              <input id="slider-k-a" type="range" min="0.5" max="2.0" step="0.05" value="${STATE.kepler.semiMajor}" class="w-full">
+            </div>
+
+            <div>
+              <div class="flex justify-between text-slate-400 mb-1">
+                <span>离心率 (e)</span>
+                <span id="k-e-val" class="font-mono-code text-amber-400">${STATE.kepler.eccentricity.toFixed(2)}</span>
+              </div>
+              <input id="slider-k-e" type="range" min="0.0" max="0.88" step="0.02" value="${STATE.kepler.eccentricity}" class="w-full">
+            </div>
+          </div>
+
+          <div class="glass-card p-3 rounded-xl space-y-2 text-[11px]">
+            <h4 class="font-semibold text-slate-200">当前椭圆几何导出量</h4>
+            <div class="flex justify-between">
+              <span class="text-slate-400">半短轴 (b = a√(1-e²)):</span>
+              <span class="font-mono-code text-slate-200">${(STATE.kepler.semiMajor * Math.sqrt(1 - STATE.kepler.eccentricity ** 2)).toFixed(3)} AU</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-400">焦距 (c = ae):</span>
+              <span class="font-mono-code text-slate-200">${(STATE.kepler.semiMajor * STATE.kepler.eccentricity).toFixed(3)} AU</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-400">近日点速度 / 远日点速度:</span>
+              <span class="font-mono-code text-emerald-400">${((1 + STATE.kepler.eccentricity) / (1 - STATE.kepler.eccentricity)).toFixed(2)} 倍</span>
+            </div>
+          </div>
+
+          ${STATE.kepler.tab === 'third' ? `
+            <div class="glass-card p-3 rounded-xl space-y-1.5 text-[11px]">
+              <h4 class="font-semibold text-sky-400">a³ / T² 常数验算表</h4>
+              <p class="text-slate-400 text-[10px]">对于太阳系中所有天体：</p>
+              <table class="w-full text-left font-mono-code text-[10px] mt-1 text-slate-300">
+                <tr class="border-b border-slate-700"><th>行星</th><th>a (AU)</th><th>T (年)</th><th>a³/T²</th></tr>
+                <tr><td>水星</td><td>0.387</td><td>0.241</td><td class="text-emerald-400">1.000</td></tr>
+                <tr><td>地球</td><td>1.000</td><td>1.000</td><td class="text-emerald-400">1.000</td></tr>
+                <tr><td>木星</td><td>5.204</td><td>11.86</td><td class="text-emerald-400">1.002</td></tr>
+                <tr><td>海王星</td><td>30.05</td><td>164.8</td><td class="text-emerald-400">0.999</td></tr>
+              </table>
+            </div>
+          ` : `
+            <div class="glass-card p-3 rounded-xl text-[11px] text-slate-300 leading-relaxed">
+              <strong>${STATE.kepler.tab === 'first' ? '第一定律重点：' : '第二定律重点：'}</strong>
+              ${STATE.kepler.tab === 'first' ? '太阳位于椭圆的一个焦点上，另一个焦点为空。离心率 e=0 时为正圆，e 趋近 1 时轨道极度扁平。' : '行星与太阳向径在等时间内扫过等面积。因此近日点距离小、公转线速度最大；远日点距离大、公转线速度最小。'}
+            </div>
+          `}
+        `;
+
+        // Attach Kepler sliders and tabs
+        document.getElementById('slider-k-a')?.addEventListener('input', e => {
+          STATE.kepler.semiMajor = parseFloat(e.target.value);
+          document.getElementById('k-a-val').textContent = `${STATE.kepler.semiMajor.toFixed(2)} AU`;
+        });
+        document.getElementById('slider-k-e')?.addEventListener('input', e => {
+          STATE.kepler.eccentricity = parseFloat(e.target.value);
+          document.getElementById('k-e-val').textContent = STATE.kepler.eccentricity.toFixed(2);
+        });
+        document.getElementById('k-tab-1')?.addEventListener('click', () => { STATE.kepler.tab = 'first'; updateDrawerContent(); });
+        document.getElementById('k-tab-2')?.addEventListener('click', () => { STATE.kepler.tab = 'second'; updateDrawerContent(); });
+        document.getElementById('k-tab-3')?.addEventListener('click', () => { STATE.kepler.tab = 'third'; updateDrawerContent(); });
+
+      } else if (STATE.mode === 'nbody') {
+        icon.textContent = '⚛️';
+        title.textContent = '引力多体动力学沙盒';
+
+        body.innerHTML = `
+          <div class="glass-card p-3 rounded-xl space-y-2">
+            <h4 class="font-semibold text-slate-200">经典多体物理预设</h4>
+            <div class="grid grid-cols-2 gap-1.5 text-[11px]">
+              <button id="nb-fig8" class="p-2 rounded-lg ${STATE.nbody.preset === 'figure8' ? 'bg-sky-600 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'} transition font-medium">8字形完美三体</button>
+              <button id="nb-lagrange" class="p-2 rounded-lg ${STATE.nbody.preset === 'lagrange' ? 'bg-sky-600 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'} transition font-medium">拉格朗日点L1~L5</button>
+              <button id="nb-binary" class="p-2 rounded-lg ${STATE.nbody.preset === 'binary' ? 'bg-sky-600 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'} transition font-medium">双星与系外行星</button>
+              <button id="nb-chaos" class="p-2 rounded-lg ${STATE.nbody.preset === 'chaos' ? 'bg-sky-600 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'} transition font-medium">混沌三体系统</button>
+            </div>
+            <button id="nb-slingshot" class="w-full py-2 rounded-lg ${STATE.nbody.preset === 'slingshot' ? 'bg-sky-600 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'} transition font-medium text-[11px]">
+              🚀 引力弹弓效应 (旅行者号)
+            </button>
+          </div>
+
+          <div class="glass-card p-3 rounded-xl space-y-2.5">
+            <h4 class="font-semibold text-sky-400 text-xs">发射自定义飞船/天体</h4>
+            <p class="text-[11px] text-slate-400">在画布上<strong>点击并拖拽</strong>拉出箭头初速度矢量，松手即可弹射天体进入引力场！</p>
+            
+            <div class="flex items-center justify-between text-[11px]">
+              <span class="text-slate-400">发射质量:</span>
+              <select id="sel-launch-mass" class="bg-slate-800 text-slate-200 border border-slate-700 rounded px-2 py-1 text-[11px]">
+                <option value="0.001">微小探测器 (无反向引力)</option>
+                <option value="1.0">小行星 (m = 1.0)</option>
+                <option value="15.0">中等恒星 (m = 15.0)</option>
+              </select>
+            </div>
+
+            <button id="btn-clear-extra" class="w-full py-1.5 bg-rose-900/60 hover:bg-rose-800/80 text-rose-200 border border-rose-700/60 rounded-xl transition text-[11px] font-medium">
+              清空自定义天体
+            </button>
+          </div>
+
+          <div class="glass-card p-3 rounded-xl space-y-1 text-[11px] text-slate-300">
+            <p><strong>数值辛算法：</strong>基于 Velocity Verlet 辛几何积分器，长时间保证引力系统能量和角动量守恒，绝不发散崩溃。</p>
+          </div>
+        `;
+
+        document.getElementById('nb-fig8')?.addEventListener('click', () => { initNBody('figure8'); updateDrawerContent(); showToast('已加载：8字形三体周期舞蹈'); });
+        document.getElementById('nb-lagrange')?.addEventListener('click', () => { initNBody('lagrange'); updateDrawerContent(); showToast('已加载：拉格朗日点与特洛伊小行星'); });
+        document.getElementById('nb-binary')?.addEventListener('click', () => { initNBody('binary'); updateDrawerContent(); showToast('已加载：双星系统与系外行星'); });
+        document.getElementById('nb-chaos')?.addEventListener('click', () => { initNBody('chaos'); updateDrawerContent(); showToast('已加载：混沌三体运动'); });
+        document.getElementById('nb-slingshot')?.addEventListener('click', () => { initNBody('slingshot'); updateDrawerContent(); showToast('已加载：引力弹弓加速'); });
+        document.getElementById('sel-launch-mass')?.addEventListener('change', e => {
+          STATE.nbody.launchMass = parseFloat(e.target.value);
+        });
+        document.getElementById('btn-clear-extra')?.addEventListener('click', () => {
+          initNBody(STATE.nbody.preset);
+          showToast('已重置沙盒天体');
+        });
+
+      } else if (STATE.mode === 'hohmann') {
+        icon.textContent = '🚀';
+        title.textContent = '霍曼转移轨道航天任务';
+
+        const r1 = STATE.hohmann.r1;
+        const r2 = STATE.hohmann.r2;
+        const at = (r1 + r2) / 2;
+        // Speeds in km/s (scaled with Earth ~ 29.8 km/s)
+        const v1_circ = 29.8;
+        const v1_peri = 29.8 * Math.sqrt(2 * r2 / (r1 + r2));
+        const delta_v1 = v1_peri - v1_circ;
+
+        const v2_circ = 29.8 * Math.sqrt(1 / r2);
+        const v2_aph = 29.8 * Math.sqrt(2 * r1 / (r2 * (r1 + r2)));
+        const delta_v2 = v2_circ - v2_aph;
+        const delta_v_total = delta_v1 + delta_v2;
+
+        body.innerHTML = `
+          <div class="glass-card p-3 rounded-xl space-y-2">
+            <h4 class="font-semibold text-slate-200">航天变轨飞行阶段</h4>
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-full bg-sky-600 flex items-center justify-center font-bold text-[11px]">${STATE.hohmann.step + 1}</span>
+              <div>
+                <div class="font-semibold text-sky-400">
+                  ${STATE.hohmann.step === 0 ? '阶段一：地球停泊圆轨道' :
+                    STATE.hohmann.step === 1 ? '阶段二：近日点加速点火 (Δv₁)' :
+                    STATE.hohmann.step === 2 ? '阶段三：椭圆转移轨道自由滑行' :
+                    STATE.hohmann.step === 3 ? '阶段四：远日点二次加速圆化 (Δv₂)' :
+                    '阶段五：与目标火星完美交会！'}
+                </div>
+                <div class="text-[10px] text-slate-400">
+                  ${STATE.hohmann.step < 3 ? '航行中...' : '变轨任务圆满成功'}
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-1.5 pt-2">
+              <button id="btn-hm-fire1" class="p-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium transition text-[11px]">
+                🔥 第一次点火 Δv₁
+              </button>
+              <button id="btn-hm-fire2" class="p-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition text-[11px]">
+                🔥 第二次点火 Δv₂
+              </button>
+            </div>
+            <button id="btn-hm-reset" class="w-full py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition text-[11px]">
+              🔄 重置变轨任务
+            </button>
+          </div>
+
+          <div class="glass-card p-3 rounded-xl space-y-2 text-[11px]">
+            <h4 class="font-semibold text-amber-400">理论计算指标 (地球 → 火星)</h4>
+            <div class="flex justify-between">
+              <span class="text-slate-400">初始速度 v₁:</span>
+              <span class="font-mono-code text-slate-200">${v1_circ.toFixed(2)} km/s</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-400">第一点火增量 Δv₁:</span>
+              <span class="font-mono-code text-emerald-400">+${delta_v1.toFixed(2)} km/s</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-400">第二点火增量 Δv₂:</span>
+              <span class="font-mono-code text-emerald-400">+${delta_v2.toFixed(2)} km/s</span>
+            </div>
+            <div class="flex justify-between border-t border-slate-700 pt-1 font-semibold">
+              <span class="text-slate-300">总速度增量 Δv_tot:</span>
+              <span class="font-mono-code text-sky-400">${delta_v_total.toFixed(2)} km/s</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-400">单程转移耗时:</span>
+              <span class="font-mono-code text-slate-200">约 259 天 (8.5 个月)</span>
+            </div>
+          </div>
+        `;
+
+        document.getElementById('btn-hm-fire1')?.addEventListener('click', () => {
+          STATE.hohmann.step = 2; // Enter coasting
+          STATE.hohmann.hasFired1 = true;
+          STATE.hohmann.time = 0;
+          playTone(440, 'triangle', 0.4);
+          updateDrawerContent();
+          showToast('第一次切向点火加速成功！已进入椭圆转移轨道');
+        });
+
+        document.getElementById('btn-hm-fire2')?.addEventListener('click', () => {
+          STATE.hohmann.step = 4; // Complete
+          STATE.hohmann.hasFired2 = true;
+          playTone(660, 'sine', 0.5);
+          updateDrawerContent();
+          showToast('第二次点火加速圆化成功！已实现轨道交会');
+        });
+
+        document.getElementById('btn-hm-reset')?.addEventListener('click', () => {
+          STATE.hohmann.step = 0;
+          STATE.hohmann.time = 0;
+          STATE.hohmann.craftAngle = 0;
+          STATE.hohmann.targetAngle = 0.77;
+          updateDrawerContent();
+          showToast('霍曼转移任务已重置');
+        });
+      }
+    }
+
+    // --- Toast Notification Helper ---
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      const msgEl = document.getElementById('toast-message');
+      msgEl.textContent = msg;
+      toast.classList.remove('opacity-0');
+      toast.classList.add('opacity-100');
+      clearTimeout(window._toastTimer);
+      window._toastTimer = setTimeout(() => {
+        toast.classList.remove('opacity-100');
+        toast.classList.add('opacity-0');
+      }, 2600);
+    }
+
+    // --- Interaction & Event Listeners ---
+    function switchMode(newMode) {
+      STATE.mode = newMode;
+      document.querySelectorAll('.mode-tab').forEach(tab => {
+        tab.classList.remove('bg-sky-600', 'text-white', 'shadow-md', 'shadow-sky-600/30');
+        tab.classList.add('text-slate-400');
+      });
+
+      const tabMap = {
+        solar: 'tab-solar',
+        kepler: 'tab-kepler',
+        nbody: 'tab-nbody',
+        hohmann: 'tab-hohmann'
+      };
+      const activeBtn = document.getElementById(tabMap[newMode]);
+      if (activeBtn) {
+        activeBtn.classList.add('bg-sky-600', 'text-white', 'shadow-md', 'shadow-sky-600/30');
+        activeBtn.classList.remove('text-slate-400');
+      }
+
+      const solarBar = document.getElementById('solar-planet-bar');
+      const scaleBtn = document.getElementById('btn-scale-mode');
+      const perspectiveBtn = document.getElementById('btn-perspective-view');
+      const modeLabel = document.getElementById('status-mode-label');
+
+      if (newMode === 'solar') {
+        solarBar.classList.remove('hidden');
+        scaleBtn.classList.remove('hidden');
+        perspectiveBtn.classList.remove('hidden');
+        modeLabel.textContent = '太阳系天体运转模型';
+      } else {
+        solarBar.classList.add('hidden');
+        scaleBtn.classList.add('hidden');
+        if (newMode === 'kepler') {
+          perspectiveBtn.classList.add('hidden');
+          modeLabel.textContent = '开普勒行星运动三大定律互动实验室';
+        } else if (newMode === 'nbody') {
+          perspectiveBtn.classList.add('hidden');
+          modeLabel.textContent = '万有引力多体动力学沙盒';
+          if (STATE.nbody.bodies.length === 0) initNBody(STATE.nbody.preset);
+        } else if (newMode === 'hohmann') {
+          perspectiveBtn.classList.add('hidden');
+          modeLabel.textContent = '霍曼转移轨道与深空航天力学';
+        }
+      }
+
+      updateDrawerContent();
+      playTone(520, 'sine', 0.15);
+    }
+
+    // Attach Top Tabs
+    document.getElementById('tab-solar').addEventListener('click', () => switchMode('solar'));
+    document.getElementById('tab-kepler').addEventListener('click', () => switchMode('kepler'));
+    document.getElementById('tab-nbody').addEventListener('click', () => switchMode('nbody'));
+    document.getElementById('tab-hohmann').addEventListener('click', () => switchMode('hohmann'));
+
+    // Planet Quick Bar
+    document.querySelectorAll('.planet-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const pKey = btn.getAttribute('data-planet');
+        STATE.selectedPlanet = pKey;
+        STATE.trackedBody = pKey;
+        updateDrawerContent();
+        showToast(`已选中天体: ${SOLAR_DATA[pKey].name}`);
+        playTone(580, 'sine', 0.12);
+      });
+    });
+
+    // Play / Pause
+    const btnPlayPause = document.getElementById('btn-play-pause');
+    const playIcon = document.getElementById('play-pause-icon');
+    const playText = document.getElementById('play-pause-text');
+
+    function togglePlay() {
+      STATE.isPlaying = !STATE.isPlaying;
+      if (STATE.isPlaying) {
+        playIcon.textContent = '⏸';
+        playText.textContent = '暂停';
+      } else {
+        playIcon.textContent = '▶';
+        playText.textContent = '运行';
+      }
+    }
+    btnPlayPause.addEventListener('click', togglePlay);
+
+    // Step buttons
+    document.getElementById('btn-step-forward').addEventListener('click', () => {
+      STATE.isPlaying = false;
+      playIcon.textContent = '▶';
+      playText.textContent = '运行';
+      if (STATE.mode === 'solar') STATE.simTime += 0.05;
+      else if (STATE.mode === 'kepler') STATE.kepler.theta += 0.15;
+      else if (STATE.mode === 'nbody') stepNBody(0.04);
+      else if (STATE.mode === 'hohmann') stepHohmann(0.04);
+    });
+
+    document.getElementById('btn-step-back').addEventListener('click', () => {
+      STATE.isPlaying = false;
+      playIcon.textContent = '▶';
+      playText.textContent = '运行';
+      if (STATE.mode === 'solar') STATE.simTime = Math.max(0, STATE.simTime - 0.05);
+      else if (STATE.mode === 'kepler') STATE.kepler.theta -= 0.15;
+    });
+
+    document.getElementById('btn-reset-time').addEventListener('click', () => {
+      STATE.simTime = 0;
+      STATE.kepler.theta = 0;
+      if (STATE.mode === 'nbody') initNBody(STATE.nbody.preset);
+      showToast('已重置时间纪元');
+    });
+
+    // Speed Slider
+    const sliderSpeed = document.getElementById('slider-speed');
+    const speedLabel = document.getElementById('speed-label');
+    sliderSpeed.addEventListener('input', e => {
+      const val = parseInt(e.target.value);
+      // Map 0 - 100 to 0.1x to 20x exponential
+      const mult = Math.pow(val / 40, 2.5);
+      STATE.speedMultiplier = mult;
+      speedLabel.textContent = mult.toFixed(1) + 'x';
+    });
+
+    // Scale Mode (Orrery Log vs Real)
+    const btnScale = document.getElementById('btn-scale-mode');
+    const scaleText = document.getElementById('scale-mode-text');
+    btnScale.addEventListener('click', () => {
+      if (STATE.scaleMode === 'log') {
+        STATE.scaleMode = 'real';
+        scaleText.textContent = '真实尺度';
+        showToast('已切换至真实宇宙尺度 (太阳系广阔空旷)');
+      } else {
+        STATE.scaleMode === 'real';
+        STATE.scaleMode = 'log';
+        scaleText.textContent = '对数视距';
+        showToast('已切换至对数观测视距 (便于同时对比内外行星)');
+      }
+    });
+
+    // 3D Perspective View Toggle
+    const btnPerspective = document.getElementById('btn-perspective-view');
+    const perspText = document.getElementById('perspective-text');
+    btnPerspective.addEventListener('click', () => {
+      STATE.is3D = !STATE.is3D;
+      perspText.textContent = STATE.is3D ? '立体3D' : '俯视2D';
+      showToast(STATE.is3D ? '已启用 3D 倾斜立体视角' : '已切换为 2D 正俯视角');
+    });
+
+    // Camera Reset
+    document.getElementById('btn-camera-reset').addEventListener('click', () => {
+      STATE.panX = 0;
+      STATE.panY = 0;
+      STATE.zoom = 1.0;
+      STATE.trackedBody = 'none';
+      STATE.pitch = 0.55;
+      STATE.yaw = 0.0;
+      showToast('摄像机已居中复位');
+    });
+
+    // Layers dropdown
+    const btnLayers = document.getElementById('btn-layers-menu');
+    const layersDropdown = document.getElementById('layers-dropdown');
+    btnLayers.addEventListener('click', e => {
+      e.stopPropagation();
+      layersDropdown.classList.toggle('hidden');
+    });
+    window.addEventListener('click', () => layersDropdown.classList.add('hidden'));
+
+    // Checkboxes
+    document.getElementById('chk-orbits').addEventListener('change', e => { STATE.showOrbits = e.target.checked; });
+    document.getElementById('chk-vectors').addEventListener('change', e => { STATE.showVectors = e.target.checked; });
+    document.getElementById('chk-habitable').addEventListener('change', e => { STATE.showHabitable = e.target.checked; });
+    document.getElementById('chk-asteroids').addEventListener('change', e => { STATE.showAsteroids = e.target.checked; });
+    document.getElementById('chk-labels').addEventListener('change', e => { STATE.showLabels = e.target.checked; });
+
+    // Audio Mute Toggle
+    const btnAudio = document.getElementById('btn-audio');
+    const audioIcon = document.getElementById('audio-icon');
+    const audioText = document.getElementById('audio-text');
+    btnAudio.addEventListener('click', () => {
+      STATE.audioEnabled = !STATE.audioEnabled;
+      initAudio();
+      if (ambientDroneGain) {
+        ambientDroneGain.gain.setValueAtTime(STATE.audioEnabled ? 0.08 : 0, audioCtx.currentTime);
+      }
+      audioIcon.textContent = STATE.audioEnabled ? '🔊' : '🔇';
+      audioText.textContent = STATE.audioEnabled ? '音效: 开' : '音效: 关';
+      showToast(STATE.audioEnabled ? '深空音效已开启' : '音效已静音');
+    });
+
+    // Guide Modal
+    const guideModal = document.getElementById('guide-modal');
+    document.getElementById('btn-guide').addEventListener('click', () => guideModal.classList.remove('hidden'));
+    document.getElementById('btn-close-guide').addEventListener('click', () => guideModal.classList.add('hidden'));
+    document.getElementById('btn-close-guide-footer').addEventListener('click', () => guideModal.classList.add('hidden'));
+
+    // Fullscreen Toggle
+    document.getElementById('btn-fullscreen').addEventListener('click', () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    });
+
+    // Drawer minimize / restore
+    const drawer = document.getElementById('info-drawer');
+    const btnOpenDrawer = document.getElementById('btn-open-drawer');
+    document.getElementById('btn-toggle-drawer').addEventListener('click', () => {
+      drawer.classList.add('hidden');
+      btnOpenDrawer.classList.remove('hidden');
+    });
+    btnOpenDrawer.addEventListener('click', () => {
+      drawer.classList.remove('hidden');
+      btnOpenDrawer.classList.add('hidden');
+    });
+
+    // --- Mouse & Touch Canvas Controls ---
+    canvas.addEventListener('mousedown', e => {
+      if (STATE.mode === 'nbody' && e.shiftKey) {
+        // N-body launch aiming
+        const rect = canvas.getBoundingClientRect();
+        STATE.nbody.isAiming = true;
+        STATE.nbody.aimStart = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        STATE.nbody.aimCurrent = { ...STATE.nbody.aimStart };
+        return;
+      }
+
+      if (e.button === 2) {
+        STATE.isRightDragging = true;
+      } else {
+        STATE.isDragging = true;
+      }
+      STATE.dragStartX = e.clientX;
+      STATE.dragStartY = e.clientY;
+    });
+
+    window.addEventListener('mousemove', e => {
+      if (STATE.nbody.isAiming) {
+        const rect = canvas.getBoundingClientRect();
+        STATE.nbody.aimCurrent = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        return;
+      }
+
+      if (STATE.isRightDragging) {
+        // Adjust 3D pitch and yaw
+        const dx = e.clientX - STATE.dragStartX;
+        const dy = e.clientY - STATE.dragStartY;
+        STATE.yaw += dx * 0.006;
+        STATE.pitch = Math.max(0.05, Math.min(1.45, STATE.pitch + dy * 0.006));
+        STATE.dragStartX = e.clientX;
+        STATE.dragStartY = e.clientY;
+      } else if (STATE.isDragging) {
+        // Pan
+        const dx = e.clientX - STATE.dragStartX;
+        const dy = e.clientY - STATE.dragStartY;
+        STATE.panX += dx;
+        STATE.panY += dy;
+        STATE.trackedBody = 'none'; // Break auto-camera lock on manual pan
+        STATE.dragStartX = e.clientX;
+        STATE.dragStartY = e.clientY;
+      }
+    });
+
+    window.addEventListener('mouseup', e => {
+      if (STATE.nbody.isAiming) {
+        STATE.nbody.isAiming = false;
+        const start = STATE.nbody.aimStart;
+        const curr = STATE.nbody.aimCurrent;
+        const center = { x: width / 2 + STATE.panX, y: height / 2 + STATE.panY };
+
+        // Real physics coordinates
+        const spawnX = (start.x - center.x) / STATE.zoom;
+        const spawnY = (start.y - center.y) / STATE.zoom;
+        const vx = (curr.x - start.x) * 0.04;
+        const vy = (curr.y - start.y) * 0.04;
+
+        STATE.nbody.bodies.push({
+          x: spawnX,
+          y: spawnY,
+          vx: vx,
+          vy: vy,
+          m: STATE.nbody.launchMass,
+          r: 5,
+          color: '#a855f7',
+          name: `飞船 #${STATE.nbody.bodies.length}`
+        });
+        STATE.nbody.trails.push([]);
+        showToast('自定义飞船已发射！');
+        playTone(600, 'triangle', 0.2);
+      }
+      STATE.isDragging = false;
+      STATE.isRightDragging = false;
+    });
+
+    // Canvas click to select planet in Solar Mode
+    canvas.addEventListener('click', e => {
+      if (STATE.mode !== 'solar') return;
+      const rect = canvas.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+
+      let found = null;
+      let minDist = 26;
+
+      Object.keys(SOLAR_DATA).forEach(key => {
+        const state = getPlanetState(key, STATE.simTime);
+        const pt = project3D(state.x, state.y, state.z);
+        const dist = Math.hypot(pt.x - clickX, pt.y - clickY);
+        if (dist < minDist) {
+          minDist = dist;
+          found = key;
+        }
+      });
+
+      if (found) {
+        STATE.selectedPlanet = found;
+        STATE.trackedBody = found;
+        updateDrawerContent();
+        showToast(`已选中并追踪: ${SOLAR_DATA[found].name}`);
+        playTone(550, 'sine', 0.15);
+      }
+    });
+
+    // Zoom on Wheel
+    canvas.addEventListener('wheel', e => {
+      e.preventDefault();
+      const zoomFactor = e.deltaY < 0 ? 1.12 : 0.89;
+      STATE.zoom = Math.max(0.18, Math.min(6.5, STATE.zoom * zoomFactor));
+    }, { passive: false });
+
+    // Touch Support
+    let touchStartDist = 0;
+    canvas.addEventListener('touchstart', e => {
+      if (e.touches.length === 1) {
+        STATE.isDragging = true;
+        STATE.dragStartX = e.touches[0].clientX;
+        STATE.dragStartY = e.touches[0].clientY;
+      } else if (e.touches.length === 2) {
+        touchStartDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+      }
+    });
+
+    canvas.addEventListener('touchmove', e => {
+      if (e.touches.length === 1 && STATE.isDragging) {
+        const dx = e.touches[0].clientX - STATE.dragStartX;
+        const dy = e.touches[0].clientY - STATE.dragStartY;
+        STATE.panX += dx;
+        STATE.panY += dy;
+        STATE.trackedBody = 'none';
+        STATE.dragStartX = e.touches[0].clientX;
+        STATE.dragStartY = e.touches[0].clientY;
+      } else if (e.touches.length === 2) {
+        const dist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        const factor = dist / touchStartDist;
+        STATE.zoom = Math.max(0.18, Math.min(6.5, STATE.zoom * factor));
+        touchStartDist = dist;
+      }
+    });
+
+    canvas.addEventListener('touchend', () => {
+      STATE.isDragging = false;
+    });
+
+    // Keyboard Shortcuts
+    window.addEventListener('keydown', e => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        togglePlay();
+      } else if (e.key === 'r' || e.key === 'R') {
+        STATE.panX = 0;
+        STATE.panY = 0;
+        STATE.zoom = 1.0;
+        STATE.trackedBody = 'none';
+      }
+    });
+
+    // Prevent default context menu on canvas for right-click rotation
+    canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+    // --- Window Onload Initialization ---
+    window.onload = () => {
+      resizeCanvas();
+      updateDrawerContent();
+      requestAnimationFrame(render);
+    };
+  </script>
+</body>
+</html>
